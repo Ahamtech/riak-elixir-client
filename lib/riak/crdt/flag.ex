@@ -8,8 +8,9 @@ defmodule Riak.CRDT.Flag do
   Creates a new flag container
   """
   def new, do: :riakc_flag.new
-  def new(context), do: :riakc_flag.new(context)
-  def new(value, context) when is_boolean(value), do: :riakc_flag.new(value, context) 
+  def new(context) when is_binary(context), do: :riakc_flag.new(context)
+  def new(value) when is_boolean(value), do: :riakc_flag.new(value, :undefined)
+  def new(value, context) when is_boolean(value) and is_binary(context), do: :riakc_flag.new(value, context)
 
   @doc """
   Extracts current value of `flag`

@@ -8,6 +8,9 @@ defmodule Riak.CRDT.Counter do
   Create a new counter
   """
   def new, do: :riakc_counter.new
+  def new(context) when is_binary(context), do: :riakc_counter.new(context)
+  def new(value) when is_integer(value), do: :riakc_counter.new(value, :undefined)
+  def new(value, context) when is_integer(value) and is_binary(context), do: :riakc_counter.new(value, context)
 
   @doc """
   Increment a `counter` on the `amount` defaulting in 1

@@ -9,8 +9,9 @@ defmodule Riak.CRDT.Set do
   Create an empty set
   """
   def new, do: :riakc_set.new
-  def new(context), do: :riakc_set.new(context)
-  def new(value, context) when is_list(value), do: :riakc_set.new(value, context)
+  def new(context) when is_binary(context), do: :riakc_set.new(context)
+  def new(values) when is_list(values), do: :riakc_set.new(values, :undefined)
+  def new(values, context) when is_list(values) and is_binary(context), do: :riakc_set.new(values, context)
 
   @doc """
   Get original value as an `ordset`

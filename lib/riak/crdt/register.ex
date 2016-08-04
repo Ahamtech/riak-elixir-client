@@ -8,11 +8,13 @@ defmodule Riak.CRDT.Register do
   Creates a new register
   """
   def new, do: :riakc_register.new
-
-  @doc """
-  Creates a new register with the initial `value`
-  """
-  def new(value) when is_binary(value), do: set(new, value)
+  def new(context_or_value) when is_binary(context_or_value) do
+    case String.printable?(context_or_value) do
+      true -> new |> set(context_or_value)
+      _ -> :riakc_register.new(context_or_value)
+    end
+  end
+  def new(value, context) when is_binary(value) and is_binary(context), do: :riakc_register.new(value, context)
 
   @doc """
   Extracts current value of `register`
