@@ -26,12 +26,11 @@ defmodule Riak.CRDT.FlagTest do
   test "create and disable a flag" do
     flag =
       RiakMap.new
-        |> RiakMap.put("foo", Flag.new("somecontext"))
-        |> RiakMap.update(:flag, "foo", &Flag.disable/1)
+      |> RiakMap.put("foo", Flag.new(false)) #flags can't have their own context
 
     assert flag == {
       :map, [],
-      [{{"foo", :flag}, {:flag, false, :disable, "somecontext"}}],
+      [{{"foo", :flag}, {:flag, false, :disable, :undefined}}],
       [],
       :undefined
     }

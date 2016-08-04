@@ -9,8 +9,19 @@ defmodule Riak.CRDT.Map do
   """
   def new, do: :riakc_map.new
   def new(context) when is_binary(context), do: :riakc_map.new(context)
-  def new(values) when is_list(values), do: :riakc_map.new(values, :undefined)
-  def new(values, context) when is_list(values) and is_binary(context), do: :riakc_map.new(values, context)
+  def new([{_,_}|_]=values) do
+    Enum.reduce(values, new, fn v, a ->
+      {k, crdt} = Riak.CRDT.new(v)
+      put(a, k, crdt)
+    end)
+  end
+  def new(values) when is_map(values), do: new(Map.to_list(values))
+  def new([{_,_}|_]=values, context) when is_binary(context) do
+    Enum.map(values, fn {k, v} ->
+      {Riak.CRDT.to_crdt_key(k, Riak.CRDT.type(v)), Riak.CRDT.value(Riak.CRDT.new(v, context))}
+    end) |> :riakc_map.new(context)
+  end
+  def new(values, context) when is_map(values) and is_binary(context), do: new(Map.to_list(values), context)
 
   @doc """
   Get the `map` size
@@ -81,8 +92,21 @@ defmodule Riak.CRDT.Map do
   @doc """
   Get the original value of the `map`
   """
+
   def value(map) when Record.is_record(map, :map), do: :riakc_map.value(map)
   def value(nil), do: {:error, :nil_object}
+
+  def into([], %{}=m), do: m
+  def into([{{k,:map},v}|rest], %{}=m), do: into(rest, Map.put(m, String.to_atom(k), into(v, %{})))
+  def into([{{k,_},v}|rest], %{}=m), do: into(rest, Map.put(m, String.to_atom(k), v))
+  def into(map, %{}=m) when Record.is_record(map, :map), do: into(value(map), m)
+
+  def into([], m) when is_list(m), do: Enum.reverse(m)
+  def into([{{k,:map},v}|rest], m) when is_list(m), do: into(rest, [{String.to_atom(k), into(v, %{})}|m])
+  def into([{{k,_},v}|rest], m) when is_list(m), do: into(rest, [{String.to_atom(k), v}|m])
+  def into(map, m) when is_list(m) when Record.is_record(map, :map), do: into(value(map), m)
+
+  def into(_, _), do: {:error, :not_map}
 
   @doc """
   List all keys of the `map`

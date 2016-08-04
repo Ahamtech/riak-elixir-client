@@ -4,7 +4,58 @@ defmodule Riak.CRDT do
   """
   require Record
 
-  Enum.each [:set, :map, :counter, :register, :flag], fn t ->
-    def type(value) when Record.is_record(value, unquote(t)), do: unquote(t)
+  @crdts [
+    {:set, Riak.CRDT.Set, :is_list},
+    {:map, Riak.CRDT.Map, :is_map},
+    {:counter, Riak.CRDT.Counter, :is_integer},
+    {:register, Riak.CRDT.Register, :is_binary},
+    {:flag, Riak.CRDT.Flag, :is_boolean}
+  ]
+
+  # Special additional list of values handler for maps
+  def type([{_,_}|_]), do: :map
+
+  Enum.each @crdts, fn {t, _, f} ->
+    def type(v) when Record.is_record(v, unquote(t)), do: unquote(t)
+    def type(v) when unquote(f)(v), do: unquote(t)
   end
+
+  # Special additional list of values handler for maps
+  def new({k, [{_,_}|_]=v}), do: {to_crdt_key(k, :map), new(v)}
+  def new([{_,_}|_]=v), do: Riak.CRDT.Map.new(v)
+
+  def new([first|_]=v) when not is_binary(first), do: Enum.map(v, fn iv -> new(iv) end)
+
+  Enum.each @crdts, fn {t, m, f} ->
+    def new(v) when Record.is_record(v, unquote(t)), do: v
+    def new(v) when unquote(f)(v), do: unquote(m).new(v)
+    def new({k, v}) when Record.is_record(v, unquote(t)) or unquote(f)(v),
+      do: {to_crdt_key(k, unquote(t)), new(v)}
+  end
+
+  def new({k, [{_,_}|_]=v}, c), do: {to_crdt_key(k, :map), new(v, c)}
+  def new([{_,_}|_]=v, c), do: Riak.CRDT.Map.new(v, c)
+
+  def new([first|_]=v, c) when not is_binary(first), do: Enum.map(v, fn iv -> new(iv, c) end)
+
+  Enum.each @crdts, fn {t, m, f} ->
+    def new(v, c) when Record.is_record(v, unquote(t)), do: unquote(m).new(unquote(m).value(v), c)
+    def new(v, c) when unquote(f)(v), do: unquote(m).new(v, c)
+    def new({k, v}, c) when Record.is_record(v, unquote(t)) or unquote(f)(v),
+      do: {to_crdt_key(k, unquote(t)), new(v, c)}
+  end
+
+  Enum.each @crdts, fn {t, m, f} ->
+    def value(v) when Record.is_record(v, unquote(t)), do: unquote(m).value(v)
+    def value(v) when unquote(f)(v), do: v
+  end
+
+  def into(map, data), do: Riak.CRDT.Map.into(map, data)
+
+  def to_crdt_key({k, t}, t), do: to_crdt_key(k, t)
+  def to_crdt_key(k, t), do: {_to_crdt_key(k), t}
+  def to_crdt_key({k, t}), do: to_crdt_key(k, t)
+
+  def _to_crdt_key(k) when is_binary(k), do: k
+  def _to_crdt_key(k) when is_atom(k), do: Atom.to_string(k)
 end

@@ -50,6 +50,30 @@ defmodule Riak.CRDT.MapTest do
     assert {{set_key, :set}, ["foo"]} in data
   end
 
+  test "create, update and find nested maps with new structure" do
+    key = Riak.Helper.random_key
+
+    Riak.CRDT.new(%{nested_key: %{flag_key: true}})
+    |> Riak.update("maps", "bucketmap", key)
+
+    value_map = Riak.find("maps", "bucketmap", key)
+    |> Riak.CRDT.into(%{})
+
+    assert length(Elixir.Map.to_list(value_map)) == 1
+    assert value_map |> Elixir.Map.get(:nested_key) |> Elixir.Map.get(:flag_key) == true
+
+    assert Elixir.Map.has_key?(value_map, :nested_key) == true
+
+    Riak.find("maps", "bucketmap", key) |> Map.delete({"nested_key", :map})
+    |> Riak.update("maps", "bucketmap", key)
+
+    exists = Riak.find("maps", "bucketmap", key)
+    |> Riak.CRDT.into(%{})
+    |> Elixir.Map.has_key?(:nested_key)
+
+    assert exists == false
+  end
+
   test "create, update and find nested maps" do
     key = Riak.Helper.random_key
 

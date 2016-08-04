@@ -10,7 +10,9 @@ defmodule Riak.CRDT.Set do
   """
   def new, do: :riakc_set.new
   def new(context) when is_binary(context), do: :riakc_set.new(context)
-  def new(values) when is_list(values), do: :riakc_set.new(values, :undefined)
+  def new(values) when is_list(values) do
+    Enum.reduce(values, new, fn v, a -> a |> put(v) end)
+  end
   def new(values, context) when is_list(values) and is_binary(context), do: :riakc_set.new(values, context)
 
   @doc """
