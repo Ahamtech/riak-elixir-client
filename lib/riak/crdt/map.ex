@@ -39,6 +39,9 @@ defmodule Riak.CRDT.Map do
   def get(map, {key, type}) when Record.is_record(map, :map) do
     :riakc_map.fetch({key, type}, map)
   end
+  def get(map, key) when Record.is_record(map, :map) do
+    get(map, to_crdt_key(map, key))
+  end
   def get(nil, _), do: {:error, :nil_object}
 
   @doc """
@@ -56,6 +59,9 @@ defmodule Riak.CRDT.Map do
   and is_function(fun, 1) do
     :riakc_map.update({key, type}, fun, map)
   end
+  def update(map, key, fun) when Record.is_record(map, :map) do
+    update(map, to_crdt_key(map, key), fun)
+  end
   def update(nil, _, _), do: {:error, :nil_object}
 
   @doc """
@@ -69,6 +75,10 @@ defmodule Riak.CRDT.Map do
   def put(map, {key, type}, value) when Record.is_record(map, :map) do
     fun = fn _ -> value end
     :riakc_map.update({key, type}, fun, map)
+  end
+  def put(map, key, value) when Record.is_record(map, :map)
+  and is_atom(key) do
+    put(map, Atom.to_string(key), value)
   end
   def put(map, key, value) when Record.is_record(map, :map)
   and is_binary(key) do
@@ -87,26 +97,16 @@ defmodule Riak.CRDT.Map do
   def delete(map, {key, type}) when Record.is_record(map, :map) do
     :riakc_map.erase({key, type}, map)
   end
+  def delete(map, key) when Record.is_record(map, :map) do
+    delete(map, to_crdt_key(map, key))
+  end
   def delete(nil, _), do: {:error, :nil_object}
 
   @doc """
   Get the original value of the `map`
   """
-
   def value(map) when Record.is_record(map, :map), do: :riakc_map.value(map)
   def value(nil), do: {:error, :nil_object}
-
-  def into([], %{}=m), do: m
-  def into([{{k,:map},v}|rest], %{}=m), do: into(rest, Map.put(m, String.to_atom(k), into(v, %{})))
-  def into([{{k,_},v}|rest], %{}=m), do: into(rest, Map.put(m, String.to_atom(k), v))
-  def into(map, %{}=m) when Record.is_record(map, :map), do: into(value(map), m)
-
-  def into([], m) when is_list(m), do: Enum.reverse(m)
-  def into([{{k,:map},v}|rest], m) when is_list(m), do: into(rest, [{String.to_atom(k), into(v, %{})}|m])
-  def into([{{k,_},v}|rest], m) when is_list(m), do: into(rest, [{String.to_atom(k), v}|m])
-  def into(map, m) when is_list(m) when Record.is_record(map, :map), do: into(value(map), m)
-
-  def into(_, _), do: {:error, :not_map}
 
   @doc """
   List all keys of the `map`
@@ -140,4 +140,25 @@ defmodule Riak.CRDT.Map do
     end
   end
   def context(nil), do: {:error, :nil_object}
+
+  def to_crdt_key(map, key) when is_atom(key), do: to_crdt_key(map, Atom.to_string(key))
+  def to_crdt_key(map, key) when is_binary(key) do
+    Enum.reduce(value(map), {:error, :notfound}, fn
+      ({{^key, _}=k, _}, _a) -> k
+      _, a -> a
+    end)
+  end
+  def to_crdt_key(nil, _), do: {:error, :nil_object}
+
+  def into([], %{}=m), do: m
+  def into([{{k,:map},v}|rest], %{}=m), do: into(rest, Map.put(m, String.to_atom(k), into(v, %{})))
+  def into([{{k,_},v}|rest], %{}=m), do: into(rest, Map.put(m, String.to_atom(k), v))
+  def into(map, %{}=m) when Record.is_record(map, :map), do: into(value(map), m)
+
+  def into([], m) when is_list(m), do: Enum.reverse(m)
+  def into([{{k,:map},v}|rest], m) when is_list(m), do: into(rest, [{String.to_atom(k), into(v, %{})}|m])
+  def into([{{k,_},v}|rest], m) when is_list(m), do: into(rest, [{String.to_atom(k), v}|m])
+  def into(map, m) when is_list(m) when Record.is_record(map, :map), do: into(value(map), m)
+
+  def into(_, _), do: {:error, :not_map}
 end
