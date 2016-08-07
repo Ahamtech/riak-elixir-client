@@ -2,36 +2,68 @@ defmodule Riak.CRDT.Register do
   @moduledoc """
   Encapsulates a binary data to be used on CRDT.Map's
   """
+
+  @opaque t :: %__MODULE__{
+    value: String.t,
+    new_value: String.t}
+  defstruct value: "", new_value: nil
+
   require Record
 
   @doc """
-  Creates a new register
+  Creates a new `map`
   """
-  def new, do: :riakc_register.new
-  def new(context_or_value) when is_binary(context_or_value) do
-    # registers cannot exist outside of maps, no context needed
-    # case String.printable?(context_or_value) do
-    #   true -> new |> set(context_or_value)
-    #   _ -> :riakc_register.new(context_or_value)
-    # end
-    new |> set(context_or_value)
-  end
-  def new(value, context) when is_binary(value) and is_binary(context), do: :riakc_register.new(value, context)
+  @spec new :: t
+  def new(), do: %Riak.CRDT.Register{}
 
-  @doc """
-  Extracts current value of `register`
-  """
-  def value(register) when Record.is_record(register, :register) do
-    :riakc_register.value(register)
+  def new(%__MODULE__{} = register), do: register
+  def new(new_value) do
+    %Riak.CRDT.Register{
+      new_value: new_value
+    }
   end
-  def value(nil), do: {:error, :nil_object}
+  def new(value, _context) do
+    %Riak.CRDT.Register{
+      value: value
+    }
+  end
 
   @doc """
   Set the `value` on the `register`
   """
-  def set(register, value) when Record.is_record(register, :register)
-                           and is_binary(value) do
-    :riakc_register.set(value, register)
+  def set(register, value) do
+    %{register | new_value: value}
   end
-  def set(nil, _), do: {:error, :nil_object}
+
+  @doc """
+  Extracts current value of `register`
+  """
+  def value(register), do: register.value
+
+  def from_record({:register, value, new_value}) do
+    %Riak.CRDT.Register{
+      value: value,
+      new_value: to_nil(new_value)
+    }
+  end
+
+  def to_record(register) do
+    {:register, register.value, to_undefined(register.new_value)}
+  end
+
+  def to_nil(nil), do: nil
+  def to_nil(:undefined), do: nil
+  def to_nil(v), do: v
+
+  def to_undefined(nil), do: :undefined
+  def to_undefined(:undefined), do: :undefined
+  def to_undefined(v), do: v
+
+  defimpl Inspect do
+    import Inspect.Algebra
+
+    def inspect(register, opts) do
+      concat ["#Riak.CRDT.Register<", Inspect.Map.inspect(Map.from_struct(register), opts), ">"]
+    end
+  end
 end

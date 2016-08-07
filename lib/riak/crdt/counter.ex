@@ -2,39 +2,77 @@ defmodule Riak.CRDT.Counter do
   @moduledoc """
   Counter data-type on Riak 2.0.
   """
+
+  @opaque t :: %__MODULE__{
+    value: integer,
+    increment: integer}
+  defstruct value: 0, increment: nil
+
   require Record
 
   @doc """
-  Create a new counter
+  Creates a new `map`
   """
-  def new, do: :riakc_counter.new
-  def new(context) when is_binary(context), do: :riakc_counter.new(context)
-  def new(value) when is_integer(value), do: new |> increment(value)
-  def new(value, context) when is_integer(value) and is_binary(context), do: :riakc_counter.new(value, context)
+  @spec new :: t
+  def new(), do: %Riak.CRDT.Counter{}
+
+  def new(%__MODULE__{} = counter), do: counter
+  def new(increment) do
+    %Riak.CRDT.Counter{
+      increment: increment
+    }
+  end
+  def new(value, _context) do
+    %Riak.CRDT.Counter{
+      value: value
+    }
+  end
 
   @doc """
   Increment a `counter` on the `amount` defaulting in 1
   """
-  def increment(counter, amount \\ 1)
-  def increment(counter, amount) when Record.is_record(counter, :counter) do
-    :riakc_counter.increment(amount, counter)
+  def increment(counter, amount \\ 1) do
+    case counter.increment do
+      nil ->
+        %{counter | increment: amount}
+      val ->
+        %{counter | increment: val + amount}
+    end
   end
-  def increment(nil, _), do: {:error, :nil_object}
 
   @doc """
   Decrement a `counter` on the `amount` defaulting in 1
   """
-  def decrement(counter, amount \\ 1)
-  def decrement(counter, amount) when Record.is_record(counter, :counter) do
-    :riakc_counter.increment(-amount, counter)
+  def decrement(counter, amount \\ 1) do
+    increment(counter, -amount)
   end
-  def decrement(nil, _), do: {:error, :nil_object}
 
-  @doc """
-  Get the original value as a number
-  """
-  def value(counter) when Record.is_record(counter, :counter) do
-    :riakc_counter.value(counter)
+  def value(counter), do: counter.value
+
+  def from_record({:counter, value, increment}) do
+    %Riak.CRDT.Counter{
+      value: value,
+      increment: to_nil(increment)
+    }
   end
-  def value(nil), do: {:error, :nil_object}
+
+  def to_record(counter) do
+    {:counter, counter.value, to_undefined(counter.increment)}
+  end
+
+  def to_nil(nil), do: nil
+  def to_nil(:undefined), do: nil
+  def to_nil(v), do: v
+
+  def to_undefined(nil), do: :undefined
+  def to_undefined(:undefined), do: :undefined
+  def to_undefined(v), do: v
+
+  defimpl Inspect do
+    import Inspect.Algebra
+
+    def inspect(counter, opts) do
+      concat ["#Riak.CRDT.Counter<", Inspect.Map.inspect(Map.from_struct(counter), opts), ">"]
+    end
+  end
 end

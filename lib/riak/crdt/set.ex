@@ -5,53 +5,106 @@ defmodule Riak.CRDT.Set do
   """
   require Record
 
-  @doc """
-  Create an empty set
-  """
-  def new, do: :riakc_set.new
-  def new(context) when is_binary(context), do: :riakc_set.new(context)
-  def new(values) when is_list(values) do
-    Enum.reduce(values, new, fn v, a -> a |> put(v) end)
-  end
-  def new(values, context) when is_list(values) and is_binary(context), do: :riakc_set.new(values, context)
+  @opaque t :: %__MODULE__{
+    value: MapSet,
+    adds: MapSet,
+    removes: MapSet,
+    context: binary | nil}
+  defstruct value: MapSet.new, adds: MapSet.new, removes: MapSet.new, context: nil
+
+  require Record
 
   @doc """
-  Get original value as an `ordset`
+  Creates a new `map`
   """
-  def value(set) when Record.is_record(set, :set) do
-    :riakc_set.value(set)
-  end
-  def value(nil), do: {:error, :nil_object}
+  @spec new :: t
+  def new(), do: %Riak.CRDT.Set{}
 
-  @doc """
-  Checks if `set` contains `value`.
-  """
-  def member?(set, value) when Record.is_record(set, :set) and is_binary(value) do
-    :riakc_set.is_element(value, set)
+  def new(%__MODULE__{} = set), do: set
+  def new(enumerable) do
+    %Riak.CRDT.Set{
+      adds: MapSet.new(enumerable)
+    }
   end
-  def member?(nil, _), do: {:error, :nil_object}
+  def new(enumerable, context) do
+    %Riak.CRDT.Set{
+      value: MapSet.new(enumerable),
+      context: context
+    }
+  end
 
-  @doc """
-  Insert `value` on `set`
-  """
-  def put(set, value) when Record.is_record(set, :set) and is_binary(value) do
-    :riakc_set.add_element(value, set)
+  def delete(set, key) do
+    %{set | removes: MapSet.put(set.removes, key)}
   end
-  def put(nil, _), do: {:error, :nil_object}
+  def difference(set1, set2) do
+    MapSet.difference(set1.value, set2.value)
+  end
+  def disjoint?(set1, set2) do
+    MapSet.disjoint?(set1.value, set2.value)
+  end
+  def equal?(set1, set2), do: MapSet.equal?(set1.value, set2.value)
+  def intersection(set1, set2), do: MapSet.intersection(set1.value, set2.value)
+  def member?(set, value), do: MapSet.member?(set.value, value)
+  def put(set, value) do
+    %{set | adds: MapSet.put(set.adds, value)}
+  end
+  def size(set), do: MapSet.size(set.value)
+  def subset?(set1, set2), do: MapSet.subset?(set1.value, set2.value)
+  def to_list(set), do: MapSet.to_list(set.value)
+  def union(set1, set2), do: MapSet.union(set1.value, set2.value)
+  def values(set), do: to_list(set)
+  def value(set), do: to_list(set)
 
-  @doc """
-  Delete `value` on `set`
-  """
-  def delete(set, value) when Record.is_record(set, :set) and is_binary(value) do
-    :riakc_set.del_element(value, set)
+  def from_record({:set, value, adds, removes, context}) do
+    value = MapSet.new(value)
+    adds = MapSet.new(adds)
+    removes = MapSet.new(removes)
+    %Riak.CRDT.Set{
+      value: value,
+      adds: adds,
+      removes: removes,
+      context: to_nil(context)
+    }
   end
-  def delete(nil, _), do: {:error, :nil_object}
 
-  @doc """
-  Returns the number of elements in `set`
-  """
-  def size(set) when Record.is_record(set, :set) do
-    :riakc_set.size(set)
+  def to_record(set) do
+    {:set,
+     MapSet.to_list(set.value),
+     MapSet.to_list(set.adds),
+     MapSet.to_list(set.removes),
+     to_undefined(set.context),
+    }
   end
-  def size(nil), do: {:error, :nil_object}
+
+  def to_nil(nil), do: nil
+  def to_nil(:undefined), do: nil
+  def to_nil(v), do: v
+
+  def to_undefined(nil), do: :undefined
+  def to_undefined(:undefined), do: :undefined
+  def to_undefined(v), do: v
+
+  defimpl Enumerable do
+    def count(map), do: Enumerable.Map.count(map.value)
+    def member?(map, item), do: Enumerable.Map.member?(map.value, item)
+    def reduce(map, acc, fun), do: Enumerable.Map.reduce(map.value, acc, fun)
+  end
+
+  defimpl Collectable do
+    def into(original) do
+      {original, fn
+        set, {:cont, v} -> Riak.CRDT.Set.put(set, v)
+        set, :done -> set
+        _, :halt -> :ok
+      end}
+    end
+  end
+
+  defimpl Inspect do
+    import Inspect.Algebra
+
+    def inspect(set, opts) do
+      concat ["#Riak.CRDT.Set<", Inspect.Map.inspect(Map.from_struct(set), opts), ">"]
+    end
+  end
 end

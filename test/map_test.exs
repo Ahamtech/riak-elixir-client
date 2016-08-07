@@ -28,22 +28,22 @@ defmodule Riak.CRDT.MapTest do
     Map.new
       |> Map.put(reg_key, reg)
       |> Map.put(flag_key, flag)
-      |> Map.update(:counter, counter_key, fn _ -> counter end)
+      |> Map.put(counter_key, counter)
       |> Map.put(set_key, set)
       |> Riak.update("maps", "bucketmap", key)
 
-    map = Riak.find("maps", "bucketmap", key)
-      |> Map.value
+    map_rec = Riak.find("maps", "bucketmap", key) |> Map.to_record
+    map_val = :riakc_map.value(map_rec)
 
-    map_keys = :orddict.fetch_keys(map)
+    map_keys = :orddict.fetch_keys(map_val)
     assert {"counter_key", :counter} in map_keys
     assert {"flag_key", :flag} in map_keys
     assert {"register_key", :register} in map_keys
     assert {"set_key", :set} in map_keys
 
-    assert :orddict.size(map) == 4
+    assert :orddict.size(map_val) == 4
 
-    data = :orddict.to_list(map)
+    data = :orddict.to_list(map_val)
     assert {{reg_key, :register}, reg_data} in data
     assert {{flag_key, :flag}, true} in data
     assert {{counter_key, :counter}, 1} in data
@@ -57,19 +57,21 @@ defmodule Riak.CRDT.MapTest do
     |> Riak.update("maps", "bucketmap", key)
 
     value_map = Riak.find("maps", "bucketmap", key)
-    |> Riak.CRDT.into(%{})
+    |> Map.value
 
     assert length(Elixir.Map.to_list(value_map)) == 1
-    assert value_map |> Elixir.Map.get(:nested_key) |> Elixir.Map.get(:flag_key) == true
+    nested_map = value_map |> Elixir.Map.get(:nested_key)
+    assert Enum.count(nested_map) == 1
+    assert nested_map |> Elixir.Map.get(:flag_key) == true
 
     assert Elixir.Map.has_key?(value_map, :nested_key) == true
 
-    Riak.find("maps", "bucketmap", key) |> Map.delete({"nested_key", :map})
+    Riak.find("maps", "bucketmap", key)
+    |> Map.delete(:nested_key)
     |> Riak.update("maps", "bucketmap", key)
 
     exists = Riak.find("maps", "bucketmap", key)
-    |> Riak.CRDT.into(%{})
-    |> Elixir.Map.has_key?(:nested_key)
+    |> Map.has_key?(:nested_key)
 
     assert exists == false
   end
@@ -91,8 +93,8 @@ defmodule Riak.CRDT.MapTest do
 
     value_map = map |> Map.value
 
-    assert :orddict.size(value_map) == 1
-    assert :orddict.fetch({nested_key, :map}, value_map) == [{{flag_key, :flag}, true}]
+    assert Enum.count(value_map) == 1
+    assert Elixir.Map.get(value_map, :nested_key) == %{flag_key: true}
 
     exists = Riak.find("maps", "bucketmap", key)
     |> Map.has_key?({nested_key, :map})
@@ -117,7 +119,7 @@ defmodule Riak.CRDT.MapTest do
       |> Riak.update("maps", "users", key)
 
     reg_data = Riak.find("maps", "users", key)
-      |> Map.get(:register, "register_key")
+      |> Map.get(:register_key)
 
     assert "Some Data" == reg_data
 
@@ -139,13 +141,13 @@ defmodule Riak.CRDT.MapTest do
     assert exists == false
 
     exists = Riak.find("maps", "users", key)
-    |> Map.has_key?({"register_key", :register})
+    |> Map.has_key?("register_key")
 
     assert exists == true
 
     keys = Riak.find("maps", "users", key)
     |> Map.keys()
 
-    assert keys == [{"register_key", :register}]
+    assert keys == [:register_key]
   end
 end

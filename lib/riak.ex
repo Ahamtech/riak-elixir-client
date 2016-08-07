@@ -262,7 +262,7 @@ defmodule Riak do
   """
   defpool update(pid, datatype, type, bucket, key) when is_pid(pid) do
     :riakc_pb_socket.update_type(pid, {type, bucket},
-                                 key, to_op(datatype))
+                                 key, to_op(datatype.__struct__.to_record(datatype)))
   end
 
   defp to_op(datatype) do
@@ -301,7 +301,19 @@ defmodule Riak do
   """
   defpool find(pid, type, bucket, key) when is_pid(pid) do
     case :riakc_pb_socket.fetch_type(pid, {type, bucket}, key) do
-      {:ok, object} -> object
+      {:ok, object} -> from_type(object)
+      _ -> nil
+    end
+  end
+
+  defp from_type(datatype) do
+    case datatype do
+      datatype when Record.is_record(datatype, :set) ->
+        Riak.CRDT.Set.from_record(datatype)
+      datatype when Record.is_record(datatype, :counter) ->
+        Riak.CRDT.Counter.from_record(datatype)
+      datatype when Record.is_record(datatype, :map) ->
+        Riak.CRDT.Map.from_record(datatype)
       _ -> nil
     end
   end

@@ -2,163 +2,212 @@ defmodule Riak.CRDT.Map do
   @moduledoc """
   Encapsulates Riak maps
   """
+
+  @opaque t :: %__MODULE__{
+    value: map,
+    updates: map,
+    removes: MapSet,
+    context: binary | nil}
+  defstruct value: %{}, updates: %{}, removes: MapSet.new, context: nil
+
   require Record
 
   @doc """
   Creates a new `map`
   """
-  def new, do: :riakc_map.new
-  def new(context) when is_binary(context), do: :riakc_map.new(context)
-  def new([{_,_}|_]=values) do
-    Enum.reduce(values, new, fn v, a ->
-      {k, crdt} = Riak.CRDT.new(v)
-      put(a, k, crdt)
+  @spec new :: t
+  def new(), do: %Riak.CRDT.Map{}
+
+  def new(%__MODULE__{} = map), do: map
+  def new(enumerable) do
+    updates = Enum.reduce(enumerable, %{}, fn ({k, v}, a) ->
+      Map.put(a, map_key(k), Riak.CRDT.new(v))
     end)
+    %Riak.CRDT.Map{
+      updates: updates
+    }
   end
-  def new(values) when is_map(values), do: new(Map.to_list(values))
-  def new([{_,_}|_]=values, context) when is_binary(context) do
-    Enum.map(values, fn {k, v} ->
-      {Riak.CRDT.to_crdt_key(k, Riak.CRDT.type(v)), Riak.CRDT.value(Riak.CRDT.new(v, context))}
-    end) |> :riakc_map.new(context)
+  def new(enumerable, context) do
+    value = Enum.reduce(enumerable, %{}, fn ({k, v}, a) ->
+      Map.put(a, map_key(k), Riak.CRDT.new(v))
+    end)
+    %Riak.CRDT.Map{
+      value: value,
+      context: context
+    }
   end
-  def new(values, context) when is_map(values) and is_binary(context), do: new(Map.to_list(values), context)
 
-  @doc """
-  Get the `map` size
-  """
-  def size(map) when Record.is_record(map, :map), do: :riakc_map.size(map)
-  def size(nil), do: {:error, :nil_object}
-
-  @doc """
-  Fetch the value associated to `key` with the `type` on `map`
-  """
-  def get(map, type, key) when Record.is_record(map, :map) do
-    get(map, {key, type})
-  end
-  def get(nil, _, _), do: {:error, :nil_object}
-  def get(map, {key, type}) when Record.is_record(map, :map) do
-    :riakc_map.fetch({key, type}, map)
-  end
-  def get(map, key) when Record.is_record(map, :map) do
-    get(map, to_crdt_key(map, key))
-  end
-  def get(nil, _), do: {:error, :nil_object}
-
-  @doc """
-  Update the `key` on the `map` by passing the function `fun`
-  to update the value based on the current value (if exists) as argument
-  The type must be :register, :map, :set, :flag or :counter
-  """
-  def update(map, type, key, fun) when Record.is_record(map, :map) do
-    update(map, {key, type}, fun)
-  end
-  def update(nil, _, _, _), do: {:error, :nil_object}
-  def update(map, {key, type}, fun) when Record.is_record(map, :map)
-  and is_atom(type)
-  and is_binary(key)
-  and is_function(fun, 1) do
-    :riakc_map.update({key, type}, fun, map)
-  end
-  def update(map, key, fun) when Record.is_record(map, :map) do
-    update(map, to_crdt_key(map, key), fun)
-  end
-  def update(nil, _, _), do: {:error, :nil_object}
-
-  @doc """
-  Update the `key` on the `map` by passing the `value`
-  The value can be any other CRDT
-  """
-  def put(map, type, key, value) when Record.is_record(map, :map) do
-    put(map, {key, type}, value)
-  end
-  def put(nil, _, _, _), do: {:error, :nil_object}
-  def put(map, {key, type}, value) when Record.is_record(map, :map) do
-    fun = fn _ -> value end
-    :riakc_map.update({key, type}, fun, map)
-  end
-  def put(map, key, value) when Record.is_record(map, :map)
-  and is_atom(key) do
-    put(map, Atom.to_string(key), value)
-  end
-  def put(map, key, value) when Record.is_record(map, :map)
-  and is_binary(key) do
-    type = Riak.CRDT.type(value)
-    put(map, {key, type}, value)
-  end
-  def put(nil, _, _), do: {:error, :nil_object}
-
-  @doc """
-  Delete a `key` from the `map`
-  """
-  def delete(map, type, key) when Record.is_record(map, :map) do
-    delete(map, {key, type})
-  end
-  def delete(nil, _, _), do: {:error, :nil_object}
-  def delete(map, {key, type}) when Record.is_record(map, :map) do
-    :riakc_map.erase({key, type}, map)
-  end
-  def delete(map, key) when Record.is_record(map, :map) do
-    delete(map, to_crdt_key(map, key))
-  end
-  def delete(nil, _), do: {:error, :nil_object}
-
-  @doc """
-  Get the original value of the `map`
-  """
-  def value(map) when Record.is_record(map, :map), do: :riakc_map.value(map)
-  def value(nil), do: {:error, :nil_object}
-
-  @doc """
-  List all keys of the `map`
-  """
-  def keys(map) when Record.is_record(map, :map), do: :riakc_map.fetch_keys(map)
-  def keys(nil), do: {:error, :nil_object}
-
-  @doc """
-  Test if the `key` is contained in the `map`
-  """
-  def has_key?(map, type, key) when Record.is_record(map, :map) do
-    has_key?(map, {key, type})
-  end
-  def has_key?(nil, _, _), do: {:error, :nil_object}
-  def has_key?(map, {key, type}) when Record.is_record(map, :map) do
-    :riakc_map.is_key({key, type}, map)
-  end
-  def has_key?(nil, _), do: {:error, :nil_object}
-
-  @doc """
-  Extract the causal context from the `map`
-  """
-  def context(map) when Record.is_record(map, :map) do
-    case map do
-      {:map, _, _, _, context} ->
-        case context do
-          :undefined -> nil
-          _ -> context
-        end
-      _ -> nil
+  def delete(map, key) do
+    case get(map, map_key(key)) do
+      nil -> map
+      val ->
+        t = Riak.CRDT.type(val)
+        %{map | removes: MapSet.put(map.removes, {record_key(key), t})}
     end
   end
-  def context(nil), do: {:error, :nil_object}
 
-  def to_crdt_key(map, key) when is_atom(key), do: to_crdt_key(map, Atom.to_string(key))
-  def to_crdt_key(map, key) when is_binary(key) do
-    Enum.reduce(value(map), {:error, :notfound}, fn
-      ({{^key, _}=k, _}, _a) -> k
-      _, a -> a
+  def drop(map, keys) do
+    Enum.reduce(keys, map, fn k,a -> delete(a, k) end)
+  end
+
+  def equal?(map1, map2), do: Map.equal?(map1.value, map2.value)
+
+  def fetch(map, key), do: Map.fetch(map.value, map_key(key))
+
+  def fetch!(map, key), do: Map.fetch!(map.value, map_key(key))
+
+  def from_struct(struct) do
+    %Riak.CRDT.Map{
+      updates: Map.from_struct(struct)
+    }
+  end
+  def from_struct(struct, context) do
+    %Riak.CRDT.Map{
+      value: Map.from_struct(struct),
+      context: context
+    }
+  end
+
+  def from_record({:map, value, updates, removes, context}) do
+    value = Enum.reduce(to_empty(value), %{},
+      fn
+        ({{k,:map},v},a) ->
+          m = :riakc_map.new(v, :undefined)
+          Map.put(a, map_key(k), from_record(m))
+        ({{k,_},v},a) ->
+          Map.put(a, map_key(k), Riak.CRDT.new(v, nil))
+      end)
+    updates = Enum.reduce(to_empty(updates), %{},
+      fn ({{k,_},v},a) ->
+        Map.put(a, map_key(k), Riak.CRDT.new(v, context))
+      end)
+    removes = MapSet.new(removes)
+    %Riak.CRDT.Map{
+      value: value,
+      updates: updates,
+      removes: removes,
+      context: context
+    }
+  end
+
+  def to_empty(nil), do: []
+  def to_empty(:undefined), do: []
+  def to_empty(v), do: v
+
+  def to_nil(nil), do: nil
+  def to_nil(:undefined), do: nil
+  def to_nil(v), do: v
+
+  def to_undefined(nil), do: :undefined
+  def to_undefined(:undefined), do: :undefined
+  def to_undefined(v), do: v
+
+  def to_record(map) do
+    value = Enum.map(map.value, fn {k, v} ->
+      {{record_key(k), Riak.CRDT.type(v.__struct__)},
+       v.__struct__.value(v)}
+    end)
+    updates = Enum.map(map.updates, fn {k, v} ->
+      {{record_key(k), Riak.CRDT.type(v.__struct__)},
+       v.__struct__.to_record(v)}
+    end)
+    removes = MapSet.to_list(map.removes)
+    {:map, value, updates, removes, to_undefined(map.context)}
+  end
+
+  def record_key({k, _}) when is_binary(k), do: k
+  def record_key(k) when is_atom(k), do: Atom.to_string(k)
+  def record_key(k) when is_binary(k), do: k
+
+  def map_key(k) when is_atom(k), do: k
+  def map_key(k) when is_binary(k), do: String.to_atom(k)
+  def map_key({k,_}) when is_binary(k), do: String.to_atom(k)
+
+  def get(map, key, default \\ nil) do
+    case get_struct(map, key, default) do
+      nil -> nil
+      v -> v.__struct__.value(v)
+    end
+  end
+
+  def get_struct(map, key, default \\ nil) do
+    case Map.get(map.value, map_key(key), default) do
+      nil -> nil
+      v -> v
+    end
+  end
+
+  def has_key?(map, key), do: Map.has_key?(map.value, map_key(key))
+
+  def keys(map), do: Map.keys(map.value)
+
+  def put(map, key, val) do
+    %{map | updates: Map.put(map.updates, map_key(key), val)}
+  end
+
+  def to_list(map), do: Map.to_list(map.value)
+
+  def update(map, key, initial, fun) do
+    key = map_key(key)
+    case get(map, key) do
+      nil ->
+        %{map | updates: Map.update(map.updates, key, initial, fun)}
+      val ->
+        map = case Map.has_key?(map.updates, key) do
+                true ->
+                  map
+                _ ->
+                  put(map, key, val)
+              end
+        %{map | updates: Map.update(map.updates, key, initial, fun)}
+    end
+  end
+
+  def update!(map, key, fun) do
+    key = map_key(key)
+    case get_struct(map, key) do
+      nil ->
+        %{map | updates: Map.update!(map.updates, key, fun)}
+      val ->
+        map = case Map.has_key?(map.updates, key) do
+                true ->
+                  map
+                _ ->
+                  put(map, key, val)
+              end
+        %{map | updates: Map.update!(map.updates, key, fun)}
+    end
+  end
+
+  def values(map) do
+    Enum.reduce(map.value, %{}, fn ({k, v}, a) ->
+      Map.put(a, k, v.__struct__.value(v))
     end)
   end
-  def to_crdt_key(nil, _), do: {:error, :nil_object}
 
-  def into([], %{}=m), do: m
-  def into([{{k,:map},v}|rest], %{}=m), do: into(rest, Map.put(m, String.to_atom(k), into(v, %{})))
-  def into([{{k,_},v}|rest], %{}=m), do: into(rest, Map.put(m, String.to_atom(k), v))
-  def into(map, %{}=m) when Record.is_record(map, :map), do: into(value(map), m)
+  def value(map), do: values(map)
 
-  def into([], m) when is_list(m), do: Enum.reverse(m)
-  def into([{{k,:map},v}|rest], m) when is_list(m), do: into(rest, [{String.to_atom(k), into(v, %{})}|m])
-  def into([{{k,_},v}|rest], m) when is_list(m), do: into(rest, [{String.to_atom(k), v}|m])
-  def into(map, m) when is_list(m) when Record.is_record(map, :map), do: into(value(map), m)
+  defimpl Enumerable do
+    def count(map), do: Enumerable.Map.count(map.value)
+    def member?(map, item), do: Enumerable.Map.member?(map.value, item)
+    def reduce(map, acc, fun), do: Enumerable.Map.reduce(map.value, acc, fun)
+  end
 
-  def into(_, _), do: {:error, :not_map}
+  defimpl Collectable do
+    def into(original) do
+      {original, fn
+        map, {:cont, {k, v}} -> Riak.CRDT.Map.put(map, k, v)
+        map, :done -> map
+        _, :halt -> :ok
+      end}
+    end
+  end
+
+  defimpl Inspect do
+    import Inspect.Algebra
+
+    def inspect(map, opts) do
+      concat ["#Riak.CRDT.Map<", Inspect.Map.inspect(Map.from_struct(map), opts), ">"]
+    end
+  end
 end

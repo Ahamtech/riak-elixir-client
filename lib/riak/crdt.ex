@@ -15,9 +15,9 @@ defmodule Riak.CRDT do
   # Special additional list of values handler for maps
   def type([{_,_}|_]), do: :map
 
-  Enum.each @crdts, fn {t, _, f} ->
-    def type(v) when Record.is_record(v, unquote(t)), do: unquote(t)
+  Enum.each @crdts, fn {t, m, f} ->
     def type(v) when unquote(f)(v), do: unquote(t)
+    def type(unquote(m)), do: unquote(t)
   end
 
   # Special additional list of values handler for maps
@@ -27,9 +27,8 @@ defmodule Riak.CRDT do
   def new([first|_]=v) when not is_binary(first), do: Enum.map(v, fn iv -> new(iv) end)
 
   Enum.each @crdts, fn {t, m, f} ->
-    def new(v) when Record.is_record(v, unquote(t)), do: v
     def new(v) when unquote(f)(v), do: unquote(m).new(v)
-    def new({k, v}) when Record.is_record(v, unquote(t)) or unquote(f)(v),
+    def new({k, v}) when unquote(f)(v),
       do: {to_crdt_key(k, unquote(t)), new(v)}
   end
 
@@ -39,14 +38,12 @@ defmodule Riak.CRDT do
   def new([first|_]=v, c) when not is_binary(first), do: Enum.map(v, fn iv -> new(iv, c) end)
 
   Enum.each @crdts, fn {t, m, f} ->
-    def new(v, c) when Record.is_record(v, unquote(t)), do: unquote(m).new(unquote(m).value(v), c)
     def new(v, c) when unquote(f)(v), do: unquote(m).new(v, c)
-    def new({k, v}, c) when Record.is_record(v, unquote(t)) or unquote(f)(v),
+    def new({k, v}, c) when unquote(f)(v),
       do: {to_crdt_key(k, unquote(t)), new(v, c)}
   end
 
   Enum.each @crdts, fn {t, m, f} ->
-    def value(v) when Record.is_record(v, unquote(t)), do: unquote(m).value(v)
     def value(v) when unquote(f)(v), do: v
   end
 

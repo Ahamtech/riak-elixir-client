@@ -2,44 +2,68 @@ defmodule Riak.CRDT.Flag do
   @moduledoc """
   Encapsulates a boolean datatype inside a CRDT.Map
   """
+
+  @opaque t :: %__MODULE__{
+    value: boolean,
+    op: :enable | :disable}
+  defstruct value: false, op: nil
+
   require Record
 
   @doc """
-  Creates a new flag container
+  Creates a new `map`
   """
-  def new, do: :riakc_flag.new
-  # Flags cannot exist outside of maps, no context needed
-  # def new(context) when is_binary(context), do: :riakc_flag.new(context)
-  def new(true), do: new |> enable
-  def new(false), do: new |> disable
-  def new(value, context) when is_boolean(value) and is_binary(context), do: :riakc_flag.new(value, context)
+  @spec new :: t
+  def new(), do: %Riak.CRDT.Flag{}
 
-  @doc """
-  Extracts current value of `flag`
-  """
-  def value(flag) when Record.is_record(flag, :flag) do
-    :riakc_flag.value(flag)
-  end
-  def value(nil), do: {:error, :nil_object}
+  def new(%__MODULE__{} = flag), do: flag
+  def new(true), do: %Riak.CRDT.Flag{op: :enable}
+  def new(false), do: %Riak.CRDT.Flag{op: :disable}
+  def new(value, _context), do: %Riak.CRDT.Flag{value: value}
 
   @doc """
   Turns the value to true
   """
-  def enable(flag) when Record.is_record(flag, :flag) do
-    :riakc_flag.enable(flag)
+  def enable(flag) do
+    %{flag | op: :enable}
   end
-  def enable(nil), do: {:error, :nil_object}
 
   @doc """
   Turns the value to false
   """
-  def disable(flag) when Record.is_record(flag, :flag) do
-    # This is not ideal, create a :riakc_flag::flag() record with a disable op
-    case flag do
-      {:flag, value, _, :undefined} ->
-        {:flag, value, :disable, :undefined};
-      _ -> :riakc_flag.disable(flag)
+  def disable(flag) do
+    %{flag | op: :disable}
+  end
+
+  @doc """
+  Extracts current value of `flag`
+  """
+  def value(flag), do: flag.value
+
+  def from_record({:flag, value, op, _}) do
+    %Riak.CRDT.Flag{
+      value: value,
+      op: to_nil(op)
+    }
+  end
+
+  def to_record(flag) do
+    {:flag, flag.value, to_undefined(flag.op), :undefined}
+  end
+
+  def to_nil(nil), do: nil
+  def to_nil(:undefined), do: nil
+  def to_nil(v), do: v
+
+  def to_undefined(nil), do: :undefined
+  def to_undefined(:undefined), do: :undefined
+  def to_undefined(v), do: v
+
+  defimpl Inspect do
+    import Inspect.Algebra
+
+    def inspect(flag, opts) do
+      concat ["#Riak.CRDT.Flag<", Inspect.Map.inspect(Map.from_struct(flag), opts), ">"]
     end
   end
-  def disable(nil), do: {:error, :nil_object}
 end
