@@ -76,6 +76,8 @@ defmodule Riak.CRDT.Set do
     }
   end
 
+  def to_op(set), do: to_record(set) |> :riakc_set.to_op
+
   def to_nil(nil), do: nil
   def to_nil(:undefined), do: nil
   def to_nil(v), do: v

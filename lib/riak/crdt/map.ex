@@ -104,12 +104,12 @@ defmodule Riak.CRDT.Map do
 
   def to_record(map) do
     value = Enum.map(map.value, fn {k, v} ->
-      {{record_key(k), Riak.CRDT.type(v.__struct__)},
-       v.__struct__.value(v)}
+      {{record_key(k), Riak.CRDT.type(v)},
+       Riak.CRDT.value(v)}
     end)
     updates = Enum.map(map.updates, fn {k, v} ->
-      {{record_key(k), Riak.CRDT.type(v.__struct__)},
-       v.__struct__.to_record(v)}
+      {{record_key(k), Riak.CRDT.type(v)},
+       Riak.CRDT.to_record(v)}
     end)
     removes = MapSet.to_list(map.removes)
     {:map, value, updates, removes, to_undefined(map.context)}
@@ -123,14 +123,14 @@ defmodule Riak.CRDT.Map do
   def map_key(k) when is_binary(k), do: String.to_atom(k)
   def map_key({k,_}) when is_binary(k), do: String.to_atom(k)
 
-  def get(map, key, default \\ nil) do
-    case get_struct(map, key, default) do
+  def get_value(map, key, default \\ nil) do
+    case get(map, key, default) do
       nil -> nil
-      v -> v.__struct__.value(v)
+      v -> Riak.CRDT.value(v)
     end
   end
 
-  def get_struct(map, key, default \\ nil) do
+  def get(map, key, default \\ nil) do
     case Map.get(map.value, map_key(key), default) do
       nil -> nil
       v -> v
@@ -142,7 +142,7 @@ defmodule Riak.CRDT.Map do
   def keys(map), do: Map.keys(map.value)
 
   def put(map, key, val) do
-    %{map | updates: Map.put(map.updates, map_key(key), val)}
+    %{map | updates: Map.put(map.updates, map_key(key), Riak.CRDT.new(val))}
   end
 
   def to_list(map), do: Map.to_list(map.value)
@@ -165,7 +165,7 @@ defmodule Riak.CRDT.Map do
 
   def update!(map, key, fun) do
     key = map_key(key)
-    case get_struct(map, key) do
+    case get(map, key) do
       nil ->
         %{map | updates: Map.update!(map.updates, key, fun)}
       val ->
@@ -181,11 +181,13 @@ defmodule Riak.CRDT.Map do
 
   def values(map) do
     Enum.reduce(map.value, %{}, fn ({k, v}, a) ->
-      Map.put(a, k, v.__struct__.value(v))
+      Map.put(a, k, Riak.CRDT.value(v))
     end)
   end
 
   def value(map), do: values(map)
+
+  def to_op(map), do: to_record(map) |> :riakc_map.to_op
 
   defimpl Enumerable do
     def count(map), do: Enumerable.Map.count(map.value)

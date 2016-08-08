@@ -51,6 +51,8 @@ defmodule Riak.CRDT.Register do
     {:register, register.value, to_undefined(register.new_value)}
   end
 
+  def to_op(_), do: :undefined
+
   def to_nil(nil), do: nil
   def to_nil(:undefined), do: nil
   def to_nil(v), do: v

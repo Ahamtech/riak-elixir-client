@@ -60,6 +60,8 @@ defmodule Riak.CRDT.Counter do
     {:counter, counter.value, to_undefined(counter.increment)}
   end
 
+  def to_op(counter), do: to_record(counter) |> :riakc_counter.to_op
+
   def to_nil(nil), do: nil
   def to_nil(:undefined), do: nil
   def to_nil(v), do: v

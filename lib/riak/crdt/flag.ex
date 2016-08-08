@@ -51,6 +51,8 @@ defmodule Riak.CRDT.Flag do
     {:flag, flag.value, to_undefined(flag.op), :undefined}
   end
 
+  def to_op(_), do: :undefined
+
   def to_nil(nil), do: nil
   def to_nil(:undefined), do: nil
   def to_nil(v), do: v

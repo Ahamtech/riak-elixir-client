@@ -257,30 +257,9 @@ defmodule Riak do
   end
 
   @doc """
-  Updates the convergent datatype in Riak with local
-  modifications stored in the container type.
-  """
-  defpool update(pid, datatype, type, bucket, key) when is_pid(pid) do
-    :riakc_pb_socket.update_type(pid, {type, bucket},
-                                 key, to_op(datatype.__struct__.to_record(datatype)))
-  end
-
-  defp to_op(datatype) do
-    case datatype do
-      datatype when Record.is_record(datatype, :set) ->
-        :riakc_set.to_op(datatype)
-      datatype when Record.is_record(datatype, :counter) ->
-        :riakc_counter.to_op(datatype)
-      datatype when Record.is_record(datatype, :map) ->
-        :riakc_map.to_op(datatype)
-      _ -> :undefined
-    end
-  end
-
-  @doc """
   Get bucket-type/bucket/key from the server.
   """
-  defpool find(pid, bucket, key) when is_pid(pid) do
+  defpool find(pid, bucket, key) when is_pid(pid) and (is_binary(bucket) or is_tuple(bucket)) do
     case :riakc_pb_socket.get(pid, bucket, key) do
       {:ok, object} ->
         if :riakc_obj.value_count(object) > 1 do
@@ -291,31 +270,8 @@ defmodule Riak do
       _ -> nil
     end
   end
-
-  @doc """
-  Fetches the representation of a convergent datatype from Riak.
-
-  TODO: In the current implementation, it's very easy to confuse working
-  with regular k/v objects and datatypes. Clarify so that these aren't
-  conflated by assuming that any object with a type is a datatype.
-  """
-  defpool find(pid, type, bucket, key) when is_pid(pid) do
-    case :riakc_pb_socket.fetch_type(pid, {type, bucket}, key) do
-      {:ok, object} -> from_type(object)
-      _ -> nil
-    end
-  end
-
-  defp from_type(datatype) do
-    case datatype do
-      datatype when Record.is_record(datatype, :set) ->
-        Riak.CRDT.Set.from_record(datatype)
-      datatype when Record.is_record(datatype, :counter) ->
-        Riak.CRDT.Counter.from_record(datatype)
-      datatype when Record.is_record(datatype, :map) ->
-        Riak.CRDT.Map.from_record(datatype)
-      _ -> nil
-    end
+  defpool find(pid, bucket_type, bucket, key) when is_pid(pid) do
+    find(pid, {bucket_type, bucket}, key)
   end
 
   defp build_sibling_list([{_md, val}|t], final_list), do: build_sibling_list(t,[val|final_list])
@@ -337,6 +293,7 @@ defmodule Riak do
   Delete the key/value.
   """
   defpool delete(pid, obj) when is_pid(pid), do: delete(pid, obj.bucket, obj.key)
-  defpool delete(pid, bucket, key) when is_pid(pid), do: :riakc_pb_socket.delete(pid, bucket, key)
-  defpool delete(pid, type, bucket, key) when is_pid(pid), do: :riakc_pb_socket.delete(pid, {type, bucket}, key)
+  defpool delete(pid, {_bucket_type, _bucket}=b, key) when is_pid(pid), do: :riakc_pb_socket.delete(pid, b, key)
+  defpool delete(pid, bucket, key) when is_pid(pid) and is_binary(bucket), do: :riakc_pb_socket.delete(pid, bucket, key)
+  defpool delete(pid, bucket_type, bucket, key) when is_pid(pid), do: delete(pid, {bucket_type, bucket}, key)
 end

@@ -2,57 +2,79 @@ defmodule Riak.CRDT do
   @moduledoc """
   Common CRDT module
   """
+  import Riak.Pool
   require Record
 
   @crdts [
     {:set, Riak.CRDT.Set, :is_list},
-    {:map, Riak.CRDT.Map, :is_map},
     {:counter, Riak.CRDT.Counter, :is_integer},
     {:register, Riak.CRDT.Register, :is_binary},
-    {:flag, Riak.CRDT.Flag, :is_boolean}
+    {:flag, Riak.CRDT.Flag, :is_boolean},
+    {:map, Riak.CRDT.Map, :is_map}
   ]
 
-  # Special additional list of values handler for maps
-  def type([{_,_}|_]), do: :map
-
   Enum.each @crdts, fn {t, m, f} ->
-    def type(v) when unquote(f)(v), do: unquote(t)
+    def type(%unquote(m){}), do: unquote(t)
+
     def type(unquote(m)), do: unquote(t)
-  end
 
-  # Special additional list of values handler for maps
-  def new({k, [{_,_}|_]=v}), do: {to_crdt_key(k, :map), new(v)}
-  def new([{_,_}|_]=v), do: Riak.CRDT.Map.new(v)
+    def type(v) when unquote(f)(v), do: unquote(t)
 
-  def new([first|_]=v) when not is_binary(first), do: Enum.map(v, fn iv -> new(iv) end)
+    def new(%unquote(m){}=v), do: unquote(m).new(v)
 
-  Enum.each @crdts, fn {t, m, f} ->
     def new(v) when unquote(f)(v), do: unquote(m).new(v)
-    def new({k, v}) when unquote(f)(v),
-      do: {to_crdt_key(k, unquote(t)), new(v)}
-  end
 
-  def new({k, [{_,_}|_]=v}, c), do: {to_crdt_key(k, :map), new(v, c)}
-  def new([{_,_}|_]=v, c), do: Riak.CRDT.Map.new(v, c)
+    def new(%unquote(m){}=v, c), do: unquote(m).new(v, c)
 
-  def new([first|_]=v, c) when not is_binary(first), do: Enum.map(v, fn iv -> new(iv, c) end)
-
-  Enum.each @crdts, fn {t, m, f} ->
     def new(v, c) when unquote(f)(v), do: unquote(m).new(v, c)
-    def new({k, v}, c) when unquote(f)(v),
-      do: {to_crdt_key(k, unquote(t)), new(v, c)}
+
+    def value(%unquote(m){}=v), do: unquote(m).value(v)
+
+    def to_op(%unquote(m){}=v), do: unquote(m).to_op(v)
+
+    def to_record(%unquote(m){}=v), do: unquote(m).to_record(v)
+
+    def from_record(rec) when Record.is_record(rec, unquote(t)), do: unquote(m).from_record(rec)
   end
 
-  Enum.each @crdts, fn {t, m, f} ->
-    def value(v) when unquote(f)(v), do: v
+  @doc """
+  Updates the convergent datatype in Riak with local
+  modifications stored in the container type. Equivalent to `update`
+  """
+  defpool put(pid, datatype, {_bucket_type, _bucket}=b, key) when is_pid(pid) do
+    update(pid, datatype, b, key)
+  end
+  defpool put(pid, datatype, bucket_type, bucket, key) when is_pid(pid) do
+    update(pid, datatype, {bucket_type, bucket}, key)
   end
 
-  def into(map, data), do: Riak.CRDT.Map.into(map, data)
+  @doc """
+  Updates the convergent datatype in Riak with local
+  modifications stored in the container type.
+  """
+  defpool update(pid, datatype, {_bucket_type, _bucket}=b, key) when is_pid(pid) do
+    :riakc_pb_socket.update_type(pid, b, key, to_op(datatype))
+  end
+  defpool update(pid, datatype, bucket_type, bucket, key) when is_pid(pid) do
+    update(pid, datatype, {bucket_type, bucket}, key)
+  end
 
-  def to_crdt_key({k, t}, t), do: to_crdt_key(k, t)
-  def to_crdt_key(k, t), do: {_to_crdt_key(k), t}
-  def to_crdt_key({k, t}), do: to_crdt_key(k, t)
+  @doc """
+  Fetches the representation of a convergent datatype from Riak.
+  """
+  defpool find(pid, {_bucket_type, _bucket}=b, key) when is_pid(pid) do
+    case :riakc_pb_socket.fetch_type(pid, b, key) do
+      {:ok, rec} -> from_record(rec)
+      _ -> nil
+    end
+  end
+  defpool find(pid, bucket_type, bucket, key) when is_pid(pid) do
+    find(pid, {bucket_type, bucket}, key)
+  end
 
-  def _to_crdt_key(k) when is_binary(k), do: k
-  def _to_crdt_key(k) when is_atom(k), do: Atom.to_string(k)
+  @doc """
+  Delete the key/value.
+  """
+  defpool delete(pid, {_bucket_type, _bucket}=b, key) when is_pid(pid), do: :riakc_pb_socket.delete(pid, b, key)
+  defpool delete(pid, bucket_type, bucket, key) when is_pid(pid), do: delete(pid, {bucket_type, bucket}, key)
 end
