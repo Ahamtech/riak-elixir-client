@@ -141,7 +141,7 @@ defmodule Riak do
 
   #### Counters
 
-  Create a counter (`alias Riak.CRDT.Counter`):
+  Create a counter (`alias Riak.Datatype.Counter`):
 
   ```elixir
   Counter.new
@@ -165,7 +165,7 @@ defmodule Riak do
 
   #### Sets
 
-  Create a set (`alias Riak.CRDT.Set`):
+  Create a set (`alias Riak.Datatype.Set`):
 
   ```elixir
   Set.new
@@ -187,7 +187,7 @@ defmodule Riak do
 
   Maps handle binary keys with any other datatype (map, set, flag, register and counter).
 
-  Create a map (`alias Riak.CRDT.Map`):
+  Create a map (`alias Riak.Datatype.Map`):
 
   ```elixir
   register = Register.new("some string")

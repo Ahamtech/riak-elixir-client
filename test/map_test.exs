@@ -1,11 +1,9 @@
-defmodule Riak.CRDT.MapTest do
+defmodule Riak.Datatype.MapTest do
   require IEx
   use Riak.Case
-  alias Riak.CRDT.Map
-  alias Riak.CRDT.Register
-  alias Riak.CRDT.Flag
-  alias Riak.CRDT.Counter
-  alias Riak.CRDT.Set
+  alias Riak.Datatype.Map
+  alias Riak.Datatype.Register
+  alias Riak.Datatype.Flag
 
   @moduletag :riak2
 
@@ -17,9 +15,9 @@ defmodule Riak.CRDT.MapTest do
               flag_key: true,
               counter_key: 1,
               set_key: ["foo"]})
-              |> Riak.CRDT.put(bucket, key)
+              |> Riak.Datatype.put(bucket, key)
 
-    map = Riak.CRDT.find(bucket, key)
+    map = Riak.Datatype.find(bucket, key)
     assert Map.has_key?(map, :counter_key)
     assert Map.has_key?(map, :flag_key)
     assert Map.has_key?(map, :register_key)
@@ -37,20 +35,20 @@ defmodule Riak.CRDT.MapTest do
     key = Riak.Helper.random_key
     bucket = {"maps", "bucketmap"}
 
-    Riak.CRDT.new(%{nested_key: %{flag_key: true}})
-    |> Riak.CRDT.put(bucket, key)
+    Riak.Datatype.new(%{nested_key: %{flag_key: true}})
+    |> Riak.Datatype.put(bucket, key)
 
-    map = Riak.CRDT.find(bucket, key)
+    map = Riak.Datatype.find(bucket, key)
     flag = Map.get(map, :nested_key) |> Map.get(:flag_key)
     assert Enum.count(map) == 1
     assert Flag.value(flag) == true
     assert Map.has_key?(map, :nested_key) == true
 
-    Riak.CRDT.find(bucket, key)
+    Riak.Datatype.find(bucket, key)
     |> Map.delete(:nested_key)
-    |> Riak.CRDT.update(bucket, key)
+    |> Riak.Datatype.update(bucket, key)
 
-    map = Riak.CRDT.find(bucket, key)
+    map = Riak.Datatype.find(bucket, key)
     assert Map.has_key?(map, :nested_key) == false
   end
 
@@ -59,15 +57,15 @@ defmodule Riak.CRDT.MapTest do
     bucket = {"maps", "users"}
 
     Map.new(%{register_key: Register.new("Some Data")})
-    |> Riak.CRDT.put(bucket, key)
+    |> Riak.Datatype.put(bucket, key)
 
-    reg = Riak.CRDT.find(bucket, key)
+    reg = Riak.Datatype.find(bucket, key)
     |> Map.get(:register_key)
 
     assert "Some Data" == Register.value(reg)
 
-    Riak.CRDT.delete(bucket, key)
-    assert Riak.CRDT.find(bucket, key) == nil
+    Riak.Datatype.delete(bucket, key)
+    assert Riak.Datatype.find(bucket, key) == nil
   end
 
   test "map key exists" do
@@ -76,9 +74,9 @@ defmodule Riak.CRDT.MapTest do
 
     Map.new
     |> Map.put("register_key", "Some Data")
-    |> Riak.CRDT.update(bucket, key)
+    |> Riak.Datatype.update(bucket, key)
 
-    map = Riak.CRDT.find(bucket, key)
+    map = Riak.Datatype.find(bucket, key)
     assert Map.has_key?(map, "nothere") == false
     assert Map.has_key?(map, "register_key") == true
     assert Map.keys(map) == [:register_key]

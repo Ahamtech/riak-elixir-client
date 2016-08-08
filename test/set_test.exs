@@ -1,6 +1,6 @@
-defmodule Riak.CRDT.SetTest do
+defmodule Riak.Datatype.SetTest do
   use Riak.Case
-  alias Riak.CRDT.Set
+  alias Riak.Datatype.Set
 
   @moduletag :riak2
 
@@ -8,8 +8,8 @@ defmodule Riak.CRDT.SetTest do
     key = Riak.Helper.random_key
     bucket = {"sets", "bucketset"}
 
-    Set.new(["foo", "bar"]) |> Riak.CRDT.put(bucket, key)
-    set = Riak.CRDT.find(bucket, key)
+    Set.new(["foo", "bar"]) |> Riak.Datatype.put(bucket, key)
+    set = Riak.Datatype.find(bucket, key)
 
     assert Set.member?(set, "foo")
     assert Set.member?(set, "bar")
@@ -21,9 +21,9 @@ defmodule Riak.CRDT.SetTest do
 
     Set.new(["foo", "bar"])
     |> Set.put("foo") |> Set.put("bar")
-    |> Riak.CRDT.put(bucket, key)
+    |> Riak.Datatype.put(bucket, key)
 
-    set = Riak.CRDT.find(bucket, key)
+    set = Riak.Datatype.find(bucket, key)
 
     assert Set.size(set) == 2
   end

@@ -1,4 +1,4 @@
-defmodule Riak.CRDT.Counter do
+defmodule Riak.Datatype.Counter do
   @moduledoc """
   Counter data-type on Riak 2.0.
   """
@@ -14,16 +14,16 @@ defmodule Riak.CRDT.Counter do
   Creates a new `map`
   """
   @spec new :: t
-  def new(), do: %Riak.CRDT.Counter{}
+  def new(), do: %Riak.Datatype.Counter{}
 
   def new(%__MODULE__{} = counter), do: counter
   def new(increment) do
-    %Riak.CRDT.Counter{
+    %Riak.Datatype.Counter{
       increment: increment
     }
   end
   def new(value, _context) do
-    %Riak.CRDT.Counter{
+    %Riak.Datatype.Counter{
       value: value
     }
   end
@@ -50,7 +50,7 @@ defmodule Riak.CRDT.Counter do
   def value(counter), do: counter.value
 
   def from_record({:counter, value, increment}) do
-    %Riak.CRDT.Counter{
+    %Riak.Datatype.Counter{
       value: value,
       increment: to_nil(increment)
     }
@@ -74,7 +74,7 @@ defmodule Riak.CRDT.Counter do
     import Inspect.Algebra
 
     def inspect(counter, opts) do
-      concat ["#Riak.CRDT.Counter<", Inspect.Map.inspect(Map.from_struct(counter), opts), ">"]
+      concat ["#Riak.Datatype.Counter<", Inspect.Map.inspect(Map.from_struct(counter), opts), ">"]
     end
   end
 end

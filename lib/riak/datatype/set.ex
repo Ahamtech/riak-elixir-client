@@ -1,4 +1,4 @@
-defmodule Riak.CRDT.Set do
+defmodule Riak.Datatype.Set do
   @moduledoc """
   Encapsulates riakc_set using elixir Set functions as interface.
   It accepts only binary as items.
@@ -18,16 +18,16 @@ defmodule Riak.CRDT.Set do
   Creates a new `map`
   """
   @spec new :: t
-  def new(), do: %Riak.CRDT.Set{}
+  def new(), do: %Riak.Datatype.Set{}
 
   def new(%__MODULE__{} = set), do: set
   def new(enumerable) do
-    %Riak.CRDT.Set{
+    %Riak.Datatype.Set{
       adds: MapSet.new(enumerable)
     }
   end
   def new(enumerable, context) do
-    %Riak.CRDT.Set{
+    %Riak.Datatype.Set{
       value: MapSet.new(enumerable),
       context: context
     }
@@ -59,7 +59,7 @@ defmodule Riak.CRDT.Set do
     value = MapSet.new(value)
     adds = MapSet.new(adds)
     removes = MapSet.new(removes)
-    %Riak.CRDT.Set{
+    %Riak.Datatype.Set{
       value: value,
       adds: adds,
       removes: removes,
@@ -95,7 +95,7 @@ defmodule Riak.CRDT.Set do
   defimpl Collectable do
     def into(original) do
       {original, fn
-        set, {:cont, v} -> Riak.CRDT.Set.put(set, v)
+        set, {:cont, v} -> Riak.Datatype.Set.put(set, v)
         set, :done -> set
         _, :halt -> :ok
       end}
@@ -106,7 +106,7 @@ defmodule Riak.CRDT.Set do
     import Inspect.Algebra
 
     def inspect(set, opts) do
-      concat ["#Riak.CRDT.Set<", Inspect.Map.inspect(Map.from_struct(set), opts), ">"]
+      concat ["#Riak.Datatype.Set<", Inspect.Map.inspect(Map.from_struct(set), opts), ">"]
     end
   end
 end

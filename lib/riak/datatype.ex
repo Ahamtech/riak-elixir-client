@@ -1,4 +1,4 @@
-defmodule Riak.CRDT do
+defmodule Riak.Datatype do
   @moduledoc """
   Common CRDT module
   """
@@ -6,11 +6,11 @@ defmodule Riak.CRDT do
   require Record
 
   @crdts [
-    {:set, Riak.CRDT.Set, :is_list},
-    {:counter, Riak.CRDT.Counter, :is_integer},
-    {:register, Riak.CRDT.Register, :is_binary},
-    {:flag, Riak.CRDT.Flag, :is_boolean},
-    {:map, Riak.CRDT.Map, :is_map}
+    {:set, Riak.Datatype.Set, :is_list},
+    {:counter, Riak.Datatype.Counter, :is_integer},
+    {:register, Riak.Datatype.Register, :is_binary},
+    {:flag, Riak.Datatype.Flag, :is_boolean},
+    {:map, Riak.Datatype.Map, :is_map}
   ]
 
   Enum.each @crdts, fn {t, m, f} ->

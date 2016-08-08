@@ -1,4 +1,4 @@
-defmodule Riak.CRDT.Map do
+defmodule Riak.Datatype.Map do
   @moduledoc """
   Encapsulates Riak maps
   """
@@ -16,22 +16,22 @@ defmodule Riak.CRDT.Map do
   Creates a new `map`
   """
   @spec new :: t
-  def new(), do: %Riak.CRDT.Map{}
+  def new(), do: %Riak.Datatype.Map{}
 
   def new(%__MODULE__{} = map), do: map
   def new(enumerable) do
     updates = Enum.reduce(enumerable, %{}, fn ({k, v}, a) ->
-      Map.put(a, map_key(k), Riak.CRDT.new(v))
+      Map.put(a, map_key(k), Riak.Datatype.new(v))
     end)
-    %Riak.CRDT.Map{
+    %Riak.Datatype.Map{
       updates: updates
     }
   end
   def new(enumerable, context) do
     value = Enum.reduce(enumerable, %{}, fn ({k, v}, a) ->
-      Map.put(a, map_key(k), Riak.CRDT.new(v))
+      Map.put(a, map_key(k), Riak.Datatype.new(v))
     end)
-    %Riak.CRDT.Map{
+    %Riak.Datatype.Map{
       value: value,
       context: context
     }
@@ -41,7 +41,7 @@ defmodule Riak.CRDT.Map do
     case get(map, map_key(key)) do
       nil -> map
       val ->
-        t = Riak.CRDT.type(val)
+        t = Riak.Datatype.type(val)
         %{map | removes: MapSet.put(map.removes, {record_key(key), t})}
     end
   end
@@ -57,12 +57,12 @@ defmodule Riak.CRDT.Map do
   def fetch!(map, key), do: Map.fetch!(map.value, map_key(key))
 
   def from_struct(struct) do
-    %Riak.CRDT.Map{
+    %Riak.Datatype.Map{
       updates: Map.from_struct(struct)
     }
   end
   def from_struct(struct, context) do
-    %Riak.CRDT.Map{
+    %Riak.Datatype.Map{
       value: Map.from_struct(struct),
       context: context
     }
@@ -75,14 +75,14 @@ defmodule Riak.CRDT.Map do
           m = :riakc_map.new(v, :undefined)
           Map.put(a, map_key(k), from_record(m))
         ({{k,_},v},a) ->
-          Map.put(a, map_key(k), Riak.CRDT.new(v, nil))
+          Map.put(a, map_key(k), Riak.Datatype.new(v, nil))
       end)
     updates = Enum.reduce(to_empty(updates), %{},
       fn ({{k,_},v},a) ->
-        Map.put(a, map_key(k), Riak.CRDT.new(v, context))
+        Map.put(a, map_key(k), Riak.Datatype.new(v, context))
       end)
     removes = MapSet.new(removes)
-    %Riak.CRDT.Map{
+    %Riak.Datatype.Map{
       value: value,
       updates: updates,
       removes: removes,
@@ -104,12 +104,12 @@ defmodule Riak.CRDT.Map do
 
   def to_record(map) do
     value = Enum.map(map.value, fn {k, v} ->
-      {{record_key(k), Riak.CRDT.type(v)},
-       Riak.CRDT.value(v)}
+      {{record_key(k), Riak.Datatype.type(v)},
+       Riak.Datatype.value(v)}
     end)
     updates = Enum.map(map.updates, fn {k, v} ->
-      {{record_key(k), Riak.CRDT.type(v)},
-       Riak.CRDT.to_record(v)}
+      {{record_key(k), Riak.Datatype.type(v)},
+       Riak.Datatype.to_record(v)}
     end)
     removes = MapSet.to_list(map.removes)
     {:map, value, updates, removes, to_undefined(map.context)}
@@ -126,7 +126,7 @@ defmodule Riak.CRDT.Map do
   def get_value(map, key, default \\ nil) do
     case get(map, key, default) do
       nil -> nil
-      v -> Riak.CRDT.value(v)
+      v -> Riak.Datatype.value(v)
     end
   end
 
@@ -142,7 +142,7 @@ defmodule Riak.CRDT.Map do
   def keys(map), do: Map.keys(map.value)
 
   def put(map, key, val) do
-    %{map | updates: Map.put(map.updates, map_key(key), Riak.CRDT.new(val))}
+    %{map | updates: Map.put(map.updates, map_key(key), Riak.Datatype.new(val))}
   end
 
   def to_list(map), do: Map.to_list(map.value)
@@ -181,7 +181,7 @@ defmodule Riak.CRDT.Map do
 
   def values(map) do
     Enum.reduce(map.value, %{}, fn ({k, v}, a) ->
-      Map.put(a, k, Riak.CRDT.value(v))
+      Map.put(a, k, Riak.Datatype.value(v))
     end)
   end
 
@@ -198,7 +198,7 @@ defmodule Riak.CRDT.Map do
   defimpl Collectable do
     def into(original) do
       {original, fn
-        map, {:cont, {k, v}} -> Riak.CRDT.Map.put(map, k, v)
+        map, {:cont, {k, v}} -> Riak.Datatype.Map.put(map, k, v)
         map, :done -> map
         _, :halt -> :ok
       end}
@@ -209,7 +209,7 @@ defmodule Riak.CRDT.Map do
     import Inspect.Algebra
 
     def inspect(map, opts) do
-      concat ["#Riak.CRDT.Map<", Inspect.Map.inspect(Map.from_struct(map), opts), ">"]
+      concat ["#Riak.Datatype.Map<", Inspect.Map.inspect(Map.from_struct(map), opts), ">"]
     end
   end
 end

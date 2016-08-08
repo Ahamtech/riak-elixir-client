@@ -1,4 +1,4 @@
-defmodule Riak.CRDT.Flag do
+defmodule Riak.Datatype.Flag do
   @moduledoc """
   Encapsulates a boolean datatype inside a CRDT.Map
   """
@@ -14,12 +14,12 @@ defmodule Riak.CRDT.Flag do
   Creates a new `map`
   """
   @spec new :: t
-  def new(), do: %Riak.CRDT.Flag{}
+  def new(), do: %Riak.Datatype.Flag{}
 
   def new(%__MODULE__{} = flag), do: flag
-  def new(true), do: %Riak.CRDT.Flag{op: :enable}
-  def new(false), do: %Riak.CRDT.Flag{op: :disable}
-  def new(value, _context), do: %Riak.CRDT.Flag{value: value}
+  def new(true), do: %Riak.Datatype.Flag{op: :enable}
+  def new(false), do: %Riak.Datatype.Flag{op: :disable}
+  def new(value, _context), do: %Riak.Datatype.Flag{value: value}
 
   @doc """
   Turns the value to true
@@ -41,7 +41,7 @@ defmodule Riak.CRDT.Flag do
   def value(flag), do: flag.value
 
   def from_record({:flag, value, op, _}) do
-    %Riak.CRDT.Flag{
+    %Riak.Datatype.Flag{
       value: value,
       op: to_nil(op)
     }
@@ -65,7 +65,7 @@ defmodule Riak.CRDT.Flag do
     import Inspect.Algebra
 
     def inspect(flag, opts) do
-      concat ["#Riak.CRDT.Flag<", Inspect.Map.inspect(Map.from_struct(flag), opts), ">"]
+      concat ["#Riak.Datatype.Flag<", Inspect.Map.inspect(Map.from_struct(flag), opts), ">"]
     end
   end
 end

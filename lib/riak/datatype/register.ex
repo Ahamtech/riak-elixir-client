@@ -1,4 +1,4 @@
-defmodule Riak.CRDT.Register do
+defmodule Riak.Datatype.Register do
   @moduledoc """
   Encapsulates a binary data to be used on CRDT.Map's
   """
@@ -14,16 +14,16 @@ defmodule Riak.CRDT.Register do
   Creates a new `map`
   """
   @spec new :: t
-  def new(), do: %Riak.CRDT.Register{}
+  def new(), do: %Riak.Datatype.Register{}
 
   def new(%__MODULE__{} = register), do: register
   def new(new_value) do
-    %Riak.CRDT.Register{
+    %Riak.Datatype.Register{
       new_value: new_value
     }
   end
   def new(value, _context) do
-    %Riak.CRDT.Register{
+    %Riak.Datatype.Register{
       value: value
     }
   end
@@ -41,7 +41,7 @@ defmodule Riak.CRDT.Register do
   def value(register), do: register.value
 
   def from_record({:register, value, new_value}) do
-    %Riak.CRDT.Register{
+    %Riak.Datatype.Register{
       value: value,
       new_value: to_nil(new_value)
     }
@@ -65,7 +65,7 @@ defmodule Riak.CRDT.Register do
     import Inspect.Algebra
 
     def inspect(register, opts) do
-      concat ["#Riak.CRDT.Register<", Inspect.Map.inspect(Map.from_struct(register), opts), ">"]
+      concat ["#Riak.Datatype.Register<", Inspect.Map.inspect(Map.from_struct(register), opts), ">"]
     end
   end
 end
