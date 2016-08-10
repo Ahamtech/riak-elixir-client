@@ -14,12 +14,12 @@ defmodule Riak.Datatype.Flag do
   Creates a new `map`
   """
   @spec new :: t
-  def new(), do: %Riak.Datatype.Flag{}
+  def new(), do: %__MODULE__{}
 
   def new(%__MODULE__{} = flag), do: flag
-  def new(true), do: %Riak.Datatype.Flag{op: :enable}
-  def new(false), do: %Riak.Datatype.Flag{op: :disable}
-  def new(value, _context), do: %Riak.Datatype.Flag{value: value}
+  def new(true), do: %__MODULE__{op: :enable}
+  def new(false), do: %__MODULE__{op: :disable}
+  def new(value, _context), do: %__MODULE__{value: value}
 
   @doc """
   Turns the value to true
@@ -41,7 +41,7 @@ defmodule Riak.Datatype.Flag do
   def value(flag), do: flag.value
 
   def from_record({:flag, value, op, _}) do
-    %Riak.Datatype.Flag{
+    %__MODULE__{
       value: value,
       op: to_nil(op)
     }
@@ -65,7 +65,7 @@ defmodule Riak.Datatype.Flag do
     import Inspect.Algebra
 
     def inspect(flag, opts) do
-      concat ["#Riak.Datatype.Flag<", Inspect.Map.inspect(Map.from_struct(flag), opts), ">"]
+      concat ["#" <> Atom.to_string(__MODULE__) <> "<", Inspect.Map.inspect(Map.from_struct(flag), opts), ">"]
     end
   end
 end

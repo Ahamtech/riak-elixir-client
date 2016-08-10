@@ -1,6 +1,6 @@
 defmodule Riak.Datatype.Set do
   @moduledoc """
-  Encapsulates riakc_set using elixir Set functions as interface.
+  Encapsulates riakc_set.
   It accepts only binary as items.
   """
   require Record
@@ -12,22 +12,20 @@ defmodule Riak.Datatype.Set do
     context: binary | nil}
   defstruct value: MapSet.new, adds: MapSet.new, removes: MapSet.new, context: nil
 
-  require Record
-
   @doc """
-  Creates a new `map`
+  Creates a new `set`
   """
   @spec new :: t
-  def new(), do: %Riak.Datatype.Set{}
+  def new(), do: %__MODULE__{}
 
   def new(%__MODULE__{} = set), do: set
   def new(enumerable) do
-    %Riak.Datatype.Set{
+    %__MODULE__{
       adds: MapSet.new(enumerable)
     }
   end
   def new(enumerable, context) do
-    %Riak.Datatype.Set{
+    %__MODULE__{
       value: MapSet.new(enumerable),
       context: context
     }
@@ -59,7 +57,7 @@ defmodule Riak.Datatype.Set do
     value = MapSet.new(value)
     adds = MapSet.new(adds)
     removes = MapSet.new(removes)
-    %Riak.Datatype.Set{
+    %__MODULE__{
       value: value,
       adds: adds,
       removes: removes,
@@ -106,7 +104,7 @@ defmodule Riak.Datatype.Set do
     import Inspect.Algebra
 
     def inspect(set, opts) do
-      concat ["#Riak.Datatype.Set<", Inspect.Map.inspect(Map.from_struct(set), opts), ">"]
+      concat ["#" <> Atom.to_string(__MODULE__) <> "<", Inspect.Map.inspect(Map.from_struct(set), opts), ">"]
     end
   end
 end

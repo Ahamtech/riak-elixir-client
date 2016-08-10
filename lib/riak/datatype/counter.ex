@@ -14,16 +14,16 @@ defmodule Riak.Datatype.Counter do
   Creates a new `map`
   """
   @spec new :: t
-  def new(), do: %Riak.Datatype.Counter{}
+  def new(), do: %__MODULE__{}
 
   def new(%__MODULE__{} = counter), do: counter
   def new(increment) do
-    %Riak.Datatype.Counter{
+    %__MODULE__{
       increment: increment
     }
   end
   def new(value, _context) do
-    %Riak.Datatype.Counter{
+    %__MODULE__{
       value: value
     }
   end
@@ -50,7 +50,7 @@ defmodule Riak.Datatype.Counter do
   def value(counter), do: counter.value
 
   def from_record({:counter, value, increment}) do
-    %Riak.Datatype.Counter{
+    %__MODULE__{
       value: value,
       increment: to_nil(increment)
     }
@@ -74,7 +74,7 @@ defmodule Riak.Datatype.Counter do
     import Inspect.Algebra
 
     def inspect(counter, opts) do
-      concat ["#Riak.Datatype.Counter<", Inspect.Map.inspect(Map.from_struct(counter), opts), ">"]
+      concat ["#" <> Atom.to_string(__MODULE__) <> "<", Inspect.Map.inspect(Map.from_struct(counter), opts), ">"]
     end
   end
 end

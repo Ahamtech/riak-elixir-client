@@ -2,40 +2,9 @@ defmodule Riak.Datatype do
   @moduledoc """
   Common CRDT module
   """
+
   import Riak.Pool
   require Record
-
-  @crdts [
-    {:set, Riak.Datatype.Set, :is_list},
-    {:counter, Riak.Datatype.Counter, :is_integer},
-    {:register, Riak.Datatype.Register, :is_binary},
-    {:flag, Riak.Datatype.Flag, :is_boolean},
-    {:map, Riak.Datatype.Map, :is_map}
-  ]
-
-  Enum.each @crdts, fn {t, m, f} ->
-    def type(%unquote(m){}), do: unquote(t)
-
-    def type(unquote(m)), do: unquote(t)
-
-    def type(v) when unquote(f)(v), do: unquote(t)
-
-    def new(%unquote(m){}=v), do: unquote(m).new(v)
-
-    def new(v) when unquote(f)(v), do: unquote(m).new(v)
-
-    def new(%unquote(m){}=v, c), do: unquote(m).new(v, c)
-
-    def new(v, c) when unquote(f)(v), do: unquote(m).new(v, c)
-
-    def value(%unquote(m){}=v), do: unquote(m).value(v)
-
-    def to_op(%unquote(m){}=v), do: unquote(m).to_op(v)
-
-    def to_record(%unquote(m){}=v), do: unquote(m).to_record(v)
-
-    def from_record(rec) when Record.is_record(rec, unquote(t)), do: unquote(m).from_record(rec)
-  end
 
   @doc """
   Updates the convergent datatype in Riak with local
@@ -77,4 +46,36 @@ defmodule Riak.Datatype do
   """
   defpool delete(pid, {_bucket_type, _bucket}=b, key) when is_pid(pid), do: :riakc_pb_socket.delete(pid, b, key)
   defpool delete(pid, bucket_type, bucket, key) when is_pid(pid), do: delete(pid, {bucket_type, bucket}, key)
+
+  @datatypes [
+    {:set, Riak.Datatype.Set, :is_list},
+    {:counter, Riak.Datatype.Counter, :is_integer},
+    {:register, Riak.Datatype.Register, :is_binary},
+    {:flag, Riak.Datatype.Flag, :is_boolean},
+    {:map, Riak.Datatype.Map, :is_map}
+  ]
+
+  Enum.each @datatypes, fn {t, m, f} ->
+    def type(%unquote(m){}), do: unquote(t)
+
+    def type(unquote(m)), do: unquote(t)
+
+    def type(v) when unquote(f)(v), do: unquote(t)
+
+    def new(%unquote(m){}=v), do: unquote(m).new(v)
+
+    def new(v) when unquote(f)(v), do: unquote(m).new(v)
+
+    def new(%unquote(m){}=v, c), do: unquote(m).new(v, c)
+
+    def new(v, c) when unquote(f)(v), do: unquote(m).new(v, c)
+
+    def value(%unquote(m){}=v), do: unquote(m).value(v)
+
+    def to_op(%unquote(m){}=v), do: unquote(m).to_op(v)
+
+    def to_record(%unquote(m){}=v), do: unquote(m).to_record(v)
+
+    def from_record(rec) when Record.is_record(rec, unquote(t)), do: unquote(m).from_record(rec)
+  end
 end

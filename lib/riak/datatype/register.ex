@@ -8,22 +8,20 @@ defmodule Riak.Datatype.Register do
     new_value: String.t}
   defstruct value: "", new_value: nil
 
-  require Record
-
   @doc """
   Creates a new `map`
   """
   @spec new :: t
-  def new(), do: %Riak.Datatype.Register{}
+  def new(), do: %__MODULE__{}
 
   def new(%__MODULE__{} = register), do: register
   def new(new_value) do
-    %Riak.Datatype.Register{
+    %__MODULE__{
       new_value: new_value
     }
   end
   def new(value, _context) do
-    %Riak.Datatype.Register{
+    %__MODULE__{
       value: value
     }
   end
@@ -41,7 +39,7 @@ defmodule Riak.Datatype.Register do
   def value(register), do: register.value
 
   def from_record({:register, value, new_value}) do
-    %Riak.Datatype.Register{
+    %__MODULE__{
       value: value,
       new_value: to_nil(new_value)
     }
@@ -65,7 +63,7 @@ defmodule Riak.Datatype.Register do
     import Inspect.Algebra
 
     def inspect(register, opts) do
-      concat ["#Riak.Datatype.Register<", Inspect.Map.inspect(Map.from_struct(register), opts), ">"]
+      concat ["#" <> Atom.to_string(__MODULE__) <> "<", Inspect.Map.inspect(Map.from_struct(register), opts), ">"]
     end
   end
 end

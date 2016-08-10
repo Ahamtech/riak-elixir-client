@@ -16,14 +16,14 @@ defmodule Riak.Datatype.Map do
   Creates a new `map`
   """
   @spec new :: t
-  def new(), do: %Riak.Datatype.Map{}
+  def new(), do: %__MODULE__{}
 
   def new(%__MODULE__{} = map), do: map
   def new(enumerable) do
     updates = Enum.reduce(enumerable, %{}, fn ({k, v}, a) ->
       Map.put(a, map_key(k), Riak.Datatype.new(v))
     end)
-    %Riak.Datatype.Map{
+    %__MODULE__{
       updates: updates
     }
   end
@@ -31,7 +31,7 @@ defmodule Riak.Datatype.Map do
     value = Enum.reduce(enumerable, %{}, fn ({k, v}, a) ->
       Map.put(a, map_key(k), Riak.Datatype.new(v))
     end)
-    %Riak.Datatype.Map{
+    %__MODULE__{
       value: value,
       context: context
     }
@@ -57,12 +57,12 @@ defmodule Riak.Datatype.Map do
   def fetch!(map, key), do: Map.fetch!(map.value, map_key(key))
 
   def from_struct(struct) do
-    %Riak.Datatype.Map{
+    %__MODULE__{
       updates: Map.from_struct(struct)
     }
   end
   def from_struct(struct, context) do
-    %Riak.Datatype.Map{
+    %__MODULE__{
       value: Map.from_struct(struct),
       context: context
     }
@@ -73,7 +73,7 @@ defmodule Riak.Datatype.Map do
       fn
         ({{k,:map},v},a) ->
           m = :riakc_map.new(v, :undefined)
-          Map.put(a, map_key(k), from_record(m))
+        Map.put(a, map_key(k), from_record(m))
         ({{k,_},v},a) ->
           Map.put(a, map_key(k), Riak.Datatype.new(v, nil))
       end)
@@ -82,7 +82,7 @@ defmodule Riak.Datatype.Map do
         Map.put(a, map_key(k), Riak.Datatype.new(v, context))
       end)
     removes = MapSet.new(removes)
-    %Riak.Datatype.Map{
+    %__MODULE__{
       value: value,
       updates: updates,
       removes: removes,
@@ -209,7 +209,7 @@ defmodule Riak.Datatype.Map do
     import Inspect.Algebra
 
     def inspect(map, opts) do
-      concat ["#Riak.Datatype.Map<", Inspect.Map.inspect(Map.from_struct(map), opts), ">"]
+      concat ["#" <> Atom.to_string(__MODULE__) <> "<", Inspect.Map.inspect(Map.from_struct(map), opts), ">"]
     end
   end
 end
